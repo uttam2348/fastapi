@@ -3,13 +3,11 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import List
 from db.db import check_mongo_connection, users_collection, items_collection
-from db.db import users_collection
 from utils.token_helper import create_token, decode_token
 from utils.password_helper import hash_password, verify_password
 from utils.search_helper import mongo_text_search
-from db.db import check_mongo_connection
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 class Token(BaseModel):
     access_token: str
@@ -18,7 +16,7 @@ class Token(BaseModel):
 class UserCreate(BaseModel):
     username: str
     password: str
-    role: str = "admin"
+    role: str = "user"
 
 class Item(BaseModel):
     brand: str
@@ -27,6 +25,11 @@ class Item(BaseModel):
     in_stock: bool = True
     description: str
 
+app = FastAPI()
+
+@app.on_event("startup")
+async def startup():
+    await check_mongo_connection()
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     payload = decode_token(token)
@@ -37,18 +40,29 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-async def require_admin(user=Depends(get_current_user)):
-    if user["role"] != "admin":
+async def require_admin_or_superadmin(user=Depends(get_current_user)):
+    if user["role"] not in ["admin", "superadmin"]:
         raise HTTPException(status_code=403, detail="Admins only")
     return user
 
-app = FastAPI()
-
-@app.on_event("startup")
-async def startup():
-    await check_mongo_connection()
-    print("✅ MongoDB connected successfully")
-
+@app.post("/auth/users")
+async def create_user(user: UserCreate):
+    if await users_collection.find_one({"username": user.username}):
+        raise HTTPException(400, detail="Username already exists")
+    if user.role == "admin":
+        count = await users_collection.count_documents({"role": "admin"})
+        if count >= 5:
+            raise HTTPException(400, detail="Admin limit (5) reached")
+    elif user.role == "superadmin":
+        count = await users_collection.count_documents({"role": "superadmin"})
+        if count >= 2:
+            raise HTTPException(400, detail="Superadmin limit (2) reached")
+    await users_collection.insert_one({
+        "username": user.username,
+        "hashed_password": hash_password(user.password),
+        "role": user.role
+    })
+    return {"msg": "User created"}
 
 @app.post("/auth/token", response_model=Token)
 async def login(form: OAuth2PasswordRequestForm = Depends()):
@@ -58,20 +72,19 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     token = create_token({"sub": user["username"], "role": user["role"]})
     return {"access_token": token, "token_type": "bearer"}
 
-@app.post("/auth/users")
-async def create_user(user: UserCreate):
-    if await users_collection.find_one({"username": user.username}):
-        raise HTTPException(400, detail="Username already exists")
-    await users_collection.insert_one({
-        "username": user.username,
-        "hashed_password": hash_password(user.password),
-        "role": user.role
-    })
-    return {"msg": "User created"}
 
 @app.post("/items", response_model=Item)
 async def create_item(item: Item, user=Depends(get_current_user)):
-    await items_collection.insert_one(item.dict())
+    if user["role"] == "user":
+        raise HTTPException(403, detail="Users cannot create items")
+    count = await items_collection.count_documents({"created_by": user["username"]})
+    if user["role"] == "admin" and count >= 10:
+        raise HTTPException(403, detail="Reached your limit")
+    elif user["role"] == "superadmin" and count >= 100:
+        raise HTTPException(403, detail="Reached your limit")
+    item_data = item.dict()
+    item_data["created_by"] = user["username"]
+    await items_collection.insert_one(item_data)
     return item
 
 @app.get("/items", response_model=List[Item])
@@ -86,28 +99,17 @@ async def get_item(brand: str):
     return item
 
 @app.put("/items/{brand}")
-async def update_item(brand: str, item: Item, user=Depends(require_admin)):
+async def update_item(brand: str, item: Item, user=Depends(require_admin_or_superadmin)):
     result = await items_collection.update_one({"brand": brand}, {"$set": item.dict()})
     if result.matched_count == 0:
         raise HTTPException(404, detail="Item not found")
     return {"msg": "Item updated"}
 
 @app.delete("/items/{brand}")
-async def delete_item(brand: str, user=Depends(require_admin)):
+async def delete_item(brand: str, user=Depends(require_admin_or_superadmin)):
     await items_collection.delete_one({"brand": brand})
     return {"msg": "Item deleted"}
 
 @app.get("/items/search/")
 async def search_items(q: str):
-    results = await mongo_text_search(q)
-    return results
-@app.get("/debug-user")
-async def debug_user():
-    user = await users_collection.find_one({})
-    return user or {"message": "No user found"}
-@app.get("/users")
-async def get_users():
-    users = await users_collection.find().to_list(100)
-    for user in users:
-        user["_id"] = str(user["_id"])  
-    return users
+    return await mongo_text_search(q)
