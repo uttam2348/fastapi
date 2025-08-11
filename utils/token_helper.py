@@ -1,12 +1,14 @@
 from jose import jwt, JWTError
+import os
 from datetime import datetime, timedelta
 
-SECRET_KEY = "your-secret"
+SECRET_KEY = os.getenv("SECRET_KEY", "secret")
 ALGORITHM = "HS256"
 
-def create_token(data: dict, expires_delta: timedelta = timedelta(hours=1)):
+def create_token(data: dict):
     to_encode = data.copy()
-    to_encode.update({"exp": datetime.utcnow() + expires_delta})
+    expire = datetime.utcnow() + timedelta(hours=1)
+    to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def decode_token(token: str):

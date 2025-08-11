@@ -44,6 +44,9 @@ async def require_admin_or_superadmin(user=Depends(get_current_user)):
     if user["role"] not in ["admin", "superadmin"]:
         raise HTTPException(status_code=403, detail="Admins only")
     return user
+@app.get("/")
+async def root():
+    return {"message": "FastAPI connected to MongoDB Atlas"}
 
 @app.post("/auth/users")
 async def create_user(user: UserCreate):
@@ -71,7 +74,6 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
         raise HTTPException(400, detail="Incorrect username or password")
     token = create_token({"sub": user["username"], "role": user["role"]})
     return {"access_token": token, "token_type": "bearer"}
-
 
 @app.post("/items", response_model=Item)
 async def create_item(item: Item, user=Depends(get_current_user)):
