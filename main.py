@@ -158,14 +158,7 @@ async def get_notifications(user=Depends(get_current_user)):
 async def list_items():
     return await items_collection.find({}, {"_id": 0}).to_list(length=100)
 
-@app.get("/items/{brand}", response_model=Item)
-async def get_item(brand: str):
-    item = await items_collection.find_one(
-        {"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0}
-    )
-    if not item:
-        raise HTTPException(404, detail="Item not found")
-    return item
+
 
 @app.get("/items/count")
 async def get_items_count():
@@ -179,42 +172,50 @@ async def get_items_count():
         "out_of_stock": out_of_stock_count
     }
 
-@app.put("/items/{brand}")
-async def update_item(brand: str, item: Item, user=Depends(require_admin_or_superadmin)):
-    existing_item = await items_collection.find_one(
+@app.get("/items/{brand}", response_model=Item)
+async def get_item(brand: str):
+    item = await items_collection.find_one(
         {"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0}
     )
+    if not item:
+        raise HTTPException(404, detail="Item not found")
+    return item
+
+@app.put("/items/{brand}")
+async def update_item(brand: str, item: Item, user=Depends(require_admin_or_superadmin)):
+    # 1️⃣ Fetch current item (preview)
+    existing_item = await items_collection.find_one({"brand": brand}, {"_id": 0})
     if not existing_item:
         raise HTTPException(404, detail="Item not found")
 
-    # auto-update stock status
-    status = "In Stock"
-    if item.quantity == 0:
-        status = "Out of Stock"
-    elif item.quantity < 3:
-        status = "Low Stock"
+    # 2️⃣ Apply update
+    await items_collection.update_one({"brand": brand}, {"$set": item.dict()})
 
-    update_data = item.dict()
-    update_data["status"] = status
+    # 3️⃣ Fetch updated item
+    updated_item = await items_collection.find_one({"brand": brand}, {"_id": 0})
 
-    await items_collection.update_one({"brand": existing_item["brand"]}, {"$set": update_data})
-    updated_item = await items_collection.find_one({"brand": existing_item["brand"]}, {"_id": 0})
-
-    return {"msg": "Item updated successfully", "before_update": existing_item, "after_update": updated_item}
-
+    # 4️⃣ Return both preview + updated
+    return {
+        "msg": "Item updated successfully",
+        "before_update": existing_item,
+        "after_update": updated_item
+    }
 
 @app.delete("/items/{brand}")
 async def delete_item(brand: str, user=Depends(require_admin_or_superadmin)):
-    existing_item = await items_collection.find_one(
-        {"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0}
-    )
+    # 1️⃣ Fetch current item (preview)
+    existing_item = await items_collection.find_one({"brand": brand}, {"_id": 0})
     if not existing_item:
         raise HTTPException(404, detail="Item not found")
 
-    await items_collection.delete_one({"brand": existing_item["brand"]})
+    # 2️⃣ Delete the item
+    await items_collection.delete_one({"brand": brand})
 
-    return {"msg": "Item deleted successfully", "deleted_item": existing_item}
-
+    # 3️⃣ Return the preview of deleted item
+    return {
+        "msg": "Item deleted successfully",
+        "deleted_item": existing_item
+    }
 
 
 
