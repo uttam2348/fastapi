@@ -50,7 +50,7 @@ async def require_admin_or_superadmin(user=Depends(get_current_user)):
     return user
 @app.get("/")
 async def root():
-    return {"message": "FastAPI connected to MongoDB Atlas"}
+    return {"message": "hi there"}
 
 @app.post("/auth/users")
 async def create_user(user: UserCreate):
