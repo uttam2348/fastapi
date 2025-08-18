@@ -8,6 +8,7 @@ client = AsyncIOMotorClient(MONGO_URI)
 db = client[MONGO_DB_NAME]
 users_collection = db["users"]
 items_collection = db["items"]
+notifications_collection = db["notifications"]
 
 async def check_mongo_connection():
     try:
