@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 
-MONGO_URI = os.getenv("MONGO_URI")  # No default — must be in .env
+MONGO_URI = os.getenv("MONGO_URI")  
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "fastapi_db")
 
 client = AsyncIOMotorClient(MONGO_URI)

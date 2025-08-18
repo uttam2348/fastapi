@@ -50,22 +50,19 @@ async def root():
 
 @app.post("/auth/users")
 async def create_user(user: UserCreate):
+    # Check if username already exists
     if await users_collection.find_one({"username": user.username}):
         raise HTTPException(400, detail="Username already exists")
-    if user.role == "admin":
-        count = await users_collection.count_documents({"role": "admin"})
-        if count >= 5:
-            raise HTTPException(400, detail="Admin limit (5) reached")
-    elif user.role == "superadmin":
-        count = await users_collection.count_documents({"role": "superadmin"})
-        if count >= 2:
-            raise HTTPException(400, detail="Superadmin limit (2) reached")
+
+    # ✅ Removed all role count restrictions
     await users_collection.insert_one({
         "username": user.username,
         "hashed_password": hash_password(user.password),
-        "role": user.role
+        "role": user.role  # can be "user", "admin", or "superadmin"
     })
-    return {"msg": "User created"}
+    return {"msg": f"{user.role.capitalize()} created successfully"}
+
+
 
 @app.post("/auth/token", response_model=Token)
 async def login(form: OAuth2PasswordRequestForm = Depends()):
