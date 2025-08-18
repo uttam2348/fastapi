@@ -26,7 +26,8 @@ class Item(BaseModel):
     price: float
     quantity: int
     description: str
-    status : str ="In stock"
+    in_stock: bool = True 
+    created_by : str = None
 
 app = FastAPI()
 
@@ -81,31 +82,24 @@ async def create_item(item: Item, user=Depends(get_current_user)):
     if user["role"] == "user":
         raise HTTPException(403, detail="Users cannot create items")
 
-    # ✅ Check role-based item creation limits
+    # ✅ Role-based item limit
     count = await items_collection.count_documents({"created_by": user["username"]})
     if user["role"] == "admin" and count >= 10:
         raise HTTPException(403, detail="Reached your limit")
     elif user["role"] == "superadmin" and count >= 100:
         raise HTTPException(403, detail="Reached your limit")
 
-    # ✅ Determine stock status based on quantity
-    status = "In Stock"
-    if item.quantity == 0:
-        status = "Out of Stock"
-    elif item.quantity < 3:
-        status = "Low Stock"
+    # ✅ Stock availability
+    in_stock = item.quantity > 0
 
-    # ✅ Prepare item data
     item_data = item.dict()
     item_data["created_by"] = user["username"]
-    item_data["status"] = status
+    item_data["in_stock"] = in_stock
 
-    # ✅ Insert into MongoDB
     await items_collection.insert_one(item_data)
 
-    # ✅ Return with status included
-    return {**item.dict(), "status": status}
-
+    return {**item.dict(), "in_stock": in_stock, "created_by": user["username"]}
+ 
 
 @app.post("/items/buy/{brand}")
 async def buy_item(brand: str):
@@ -115,37 +109,50 @@ async def buy_item(brand: str):
     if item["quantity"] <= 0:
         raise HTTPException(400, detail="Out of stock")
 
-    # Decrease stock
     new_quantity = item["quantity"] - 1
-
-    # Update status
-    new_status = "In Stock"
-    if new_quantity == 0:
-        new_status = "Out of Stock"
-    elif new_quantity < 3:
-        new_status = "Low Stock"
+    in_stock = new_quantity > 0
 
     await items_collection.update_one(
         {"brand": brand},
-        {"$set": {"quantity": new_quantity, "status": new_status}}
+        {"$set": {"quantity": new_quantity, "in_stock": in_stock}}
     )
 
-    # If below 3 → create notification
-    if new_quantity < 3:
-        await notifications_collection.insert_one({
-            "brand": item["brand"],
-            "name": item["name"],
-            "quantity": new_quantity,
-            "status": "Low Stock",
-            "notified_at": datetime.utcnow()
-        })
+    msg = (
+        f"{item['name']} stock is low: {new_quantity} left"
+        if new_quantity < 3 else f"{item['name']} updated stock"
+    )
 
-    return {"msg": f"Purchased {item['name']}, remaining stock: {new_quantity}"}
+    await notifications_collection.update_one(
+        {"brand": item["brand"]},
+        {
+            "$set": {
+                "brand": item["brand"],
+                "name": item["name"],
+                "quantity": new_quantity,
+                "in_stock": in_stock,
+                "msg": msg,
+                "notified_at": datetime.utcnow(),
+                "created_by": item["created_by"]
+            }
+        },
+        upsert=True
+    )
+
+    return {"msg": f"Purchased {item['name']} successfully"}
+
+
 
 @app.get("/notifications")
-async def get_notifications(user=Depends(require_admin_or_superadmin)):
-    notifications = await notifications_collection.find({}, {"_id": 0}).to_list(length=50)
+async def get_notifications(user=Depends(get_current_user)):
+    if user["role"] not in ["admin", "superadmin"]:
+        raise HTTPException(403, detail="Admins or Superadmins only")
+    
+    limit = 50 if user["role"] == "admin" else 100
+    notifications = await notifications_collection.find(
+        {"created_by": user["username"]}, {"_id": 0}
+    ).to_list(length=limit)
     return {"notifications": notifications}
+
 
 @app.get("/items", response_model=List[Item])
 async def list_items():
@@ -153,23 +160,65 @@ async def list_items():
 
 @app.get("/items/{brand}", response_model=Item)
 async def get_item(brand: str):
-    item = await items_collection.find_one({"brand": brand}, {"_id": 0})
+    item = await items_collection.find_one(
+        {"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0}
+    )
     if not item:
         raise HTTPException(404, detail="Item not found")
     return item
 
+@app.get("/items/count")
+async def get_items_count():
+    total_items = await items_collection.count_documents({})
+    in_stock_count = await items_collection.count_documents({"in_stock": True})
+    out_of_stock_count = await items_collection.count_documents({"in_stock": False})
+
+    return {
+        "total_items": total_items,
+        "in_stock": in_stock_count,
+        "out_of_stock": out_of_stock_count
+    }
+
 @app.put("/items/{brand}")
 async def update_item(brand: str, item: Item, user=Depends(require_admin_or_superadmin)):
-    result = await items_collection.update_one({"brand": brand}, {"$set": item.dict()})
-    if result.matched_count == 0:
+    existing_item = await items_collection.find_one(
+        {"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0}
+    )
+    if not existing_item:
         raise HTTPException(404, detail="Item not found")
-    return {"msg": "Item updated"}
+
+    # auto-update stock status
+    status = "In Stock"
+    if item.quantity == 0:
+        status = "Out of Stock"
+    elif item.quantity < 3:
+        status = "Low Stock"
+
+    update_data = item.dict()
+    update_data["status"] = status
+
+    await items_collection.update_one({"brand": existing_item["brand"]}, {"$set": update_data})
+    updated_item = await items_collection.find_one({"brand": existing_item["brand"]}, {"_id": 0})
+
+    return {"msg": "Item updated successfully", "before_update": existing_item, "after_update": updated_item}
+
 
 @app.delete("/items/{brand}")
 async def delete_item(brand: str, user=Depends(require_admin_or_superadmin)):
-    await items_collection.delete_one({"brand": brand})
-    return {"msg": "Item deleted"}
+    existing_item = await items_collection.find_one(
+        {"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0}
+    )
+    if not existing_item:
+        raise HTTPException(404, detail="Item not found")
 
-@app.get("/items/search/")
+    await items_collection.delete_one({"brand": existing_item["brand"]})
+
+    return {"msg": "Item deleted successfully", "deleted_item": existing_item}
+
+
+
+
+@app.get("/items/search")
 async def search_items(q: str):
     return await mongo_text_search(q)
+
