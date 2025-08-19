@@ -54,15 +54,15 @@ async def root():
 
 @app.post("/auth/users")
 async def create_user(user: UserCreate):
-    # Check if username already exists
+    
     if await users_collection.find_one({"username": user.username}):
         raise HTTPException(400, detail="Username already exists")
 
-    # ✅ Removed all role count restrictions
+    
     await users_collection.insert_one({
         "username": user.username,
         "hashed_password": hash_password(user.password),
-        "role": user.role  # can be "user", "admin", or "superadmin"
+        "role": user.role  
     })
     return {"msg": f"{user.role.capitalize()} created successfully"}
 
@@ -82,14 +82,14 @@ async def create_item(item: Item, user=Depends(get_current_user)):
     if user["role"] == "user":
         raise HTTPException(403, detail="Users cannot create items")
 
-    # ✅ Role-based item limit
+    
     count = await items_collection.count_documents({"created_by": user["username"]})
     if user["role"] == "admin" and count >= 10:
         raise HTTPException(403, detail="Reached your limit")
     elif user["role"] == "superadmin" and count >= 100:
         raise HTTPException(403, detail="Reached your limit")
 
-    # ✅ Stock availability
+    
     in_stock = item.quantity > 0
 
     item_data = item.dict()
@@ -183,18 +183,17 @@ async def get_item(brand: str):
 
 @app.put("/items/{brand}")
 async def update_item(brand: str, item: Item, user=Depends(require_admin_or_superadmin)):
-    # 1️⃣ Fetch current item (preview)
+    
     existing_item = await items_collection.find_one({"brand": brand}, {"_id": 0})
     if not existing_item:
         raise HTTPException(404, detail="Item not found")
 
-    # 2️⃣ Apply update
     await items_collection.update_one({"brand": brand}, {"$set": item.dict()})
 
-    # 3️⃣ Fetch updated item
+    
     updated_item = await items_collection.find_one({"brand": brand}, {"_id": 0})
 
-    # 4️⃣ Return both preview + updated
+    
     return {
         "msg": "Item updated successfully",
         "before_update": existing_item,
@@ -203,15 +202,15 @@ async def update_item(brand: str, item: Item, user=Depends(require_admin_or_supe
 
 @app.delete("/items/{brand}")
 async def delete_item(brand: str, user=Depends(require_admin_or_superadmin)):
-    # 1️⃣ Fetch current item (preview)
+    
     existing_item = await items_collection.find_one({"brand": brand}, {"_id": 0})
     if not existing_item:
         raise HTTPException(404, detail="Item not found")
 
-    # 2️⃣ Delete the item
+    #
     await items_collection.delete_one({"brand": brand})
 
-    # 3️⃣ Return the preview of deleted item
+    
     return {
         "msg": "Item deleted successfully",
         "deleted_item": existing_item
