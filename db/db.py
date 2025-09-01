@@ -2,22 +2,26 @@ import motor.motor_asyncio
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
+
 load_dotenv()
 
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 
-# MongoDB client
+
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = client[MONGO_DB_NAME]
 
-# Collections
+
 users_collection = db["users"]
 items_collection = db["items"]
 notifications_collection = db["notifications"]
+purchases_collection = db["purchases"] 
+updated_items_collection = db["updated_items"]
+deleted_items_collection = db["deleted_items"]
+carts_collection = db["carts"]
+payments_collection = db["payments"]
 
-# Check connection
 async def check_mongo_connection():
     try:
         await client.admin.command("ping")
