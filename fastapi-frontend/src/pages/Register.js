@@ -14,21 +14,13 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch("http://127.0.0.1:8000/auth/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Registration failed");
-      }
-      
+      const response = await API.post("/auth/users", form);
+
       setMessage("Registration successful! Redirecting to login...");
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
-      setMessage(`Error: ${err.message || "Could not register."}`);
+      const errorMessage = err.response?.data?.detail || err.message || "Could not register.";
+      setMessage(`Error: ${errorMessage}`);
       console.error("Registration error:", err);
     }
   };

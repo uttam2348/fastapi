@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API from "../api";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -9,29 +10,21 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Login attempt started");
-    
-    try {
-      // Place params creation inside the handler to capture latest state
-      const params = new URLSearchParams();
-      params.append("username", username);
-      params.append("password", password);
 
-      const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
-      console.log("Sending login request to:", `${API_URL}/auth/token`);
+    try {
+      // Create form data for OAuth2 token endpoint
+      const formData = new FormData();
+      formData.append("username", username);
+      formData.append("password", password);
+
+      console.log("Sending login request to: /auth/token");
 
       // POST to FastAPI OAuth2 token endpoint (expects form data!)
-      const res = await fetch(`${API_URL}/auth/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params
+      const response = await API.post("/auth/token", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
       });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.detail || "Login failed");
-      }
-      
-      const data = await res.json();
+
+      const data = response.data;
       console.log("Login response received:", data);
 
       // Save JWT token in localStorage
@@ -43,8 +36,9 @@ export default function Login() {
       navigate("/dashboard");
       console.log("Navigation called");
     } catch (err) {
-      console.error("Login error:", err.message || err);
-      alert(`Login failed: ${err.message || "Please check credentials."}`);
+      console.error("Login error:", err);
+      const errorMessage = err.response?.data?.detail || err.message || "Please check credentials.";
+      alert(`Login failed: ${errorMessage}`);
     }
   };
 
