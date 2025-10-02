@@ -68,6 +68,19 @@ export default function Dashboard() {
     }
   }, []);
 
+  const fetchNotificationsOnly = useCallback(async () => {
+    try {
+      const notificationsRes = await API.get("/notifications");
+      setNotifications(notificationsRes.data.notifications || []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      if (error.response?.status === 403) {
+        // User doesn't have permission for notifications
+        setNotifications([]);
+      }
+    }
+  }, []);
+
   const fetchRole = useCallback(async () => {
     try {
       const res = await API.get("/auth/me");
@@ -91,6 +104,7 @@ export default function Dashboard() {
     try {
       await API.post(`/cart/add?brand=${encodeURIComponent(brand)}&quantity=${quantity}`);
       await fetchCart();
+      await fetchData(); // Refresh inventory to show updated quantities
       showMessage(`Added ${brand} to cart`);
       setIsCartOpen(true);
     } catch (error) {
@@ -105,11 +119,11 @@ export default function Dashboard() {
     fetchCart();
     fetchRole();
 
-    // Auto-refresh every 30 seconds
+    // Auto-refresh notifications every 30 seconds (only notifications, not full data)
     const interval = setInterval(() => {
       setRefreshCountdown(prev => {
         if (prev <= 1) {
-          fetchData();
+          fetchNotificationsOnly(); // Only refresh notifications, not full data
           return 604800;
         }
         return prev - 1;
@@ -117,12 +131,13 @@ export default function Dashboard() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [fetchData, fetchCart, fetchRole]);
+  }, [fetchData, fetchCart, fetchRole, fetchNotificationsOnly]);
 
   const updateCartQty = async (brand, quantity) => {
     try {
       await API.post(`/cart/update?brand=${encodeURIComponent(brand)}&quantity=${quantity}`);
       await fetchCart();
+      await fetchData(); // Refresh inventory to show updated quantities
     } catch (error) {
       console.error("Error updating cart:", error);
       showMessage(error.response?.data?.detail || "Error updating cart", "error");
@@ -144,7 +159,7 @@ export default function Dashboard() {
     try {
       const res = await API.post("/cart/checkout");
       await fetchCart();
-      await fetchData();
+      await fetchData(); // Refresh inventory to show updated quantities after purchase
       const ok = (res.data?.results || []).filter(r => r.status === "ok").length;
       const total = (res.data?.results || []).length;
       showMessage(`Checkout complete: ${ok}/${total} items purchased`);
@@ -584,41 +599,27 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Notifications */}
-        {notifications.length > 0 && (
+        {/* Notifications - Only show low stock alerts */}
+        {notifications.filter(notification => notification.quantity < 3).length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Notifications</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">⚠️ Low Stock Alerts</h2>
             <div className="space-y-3">
-              {notifications.map((notification, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg border-l-4 ${
-                    notification.quantity < 3
-                      ? "bg-red-100 border-red-500"
-                      : "bg-green-100 border-green-500"
-                  }`}
-                >
-                  <p
-                    className={`font-semibold ${
-                      notification.quantity < 3
-                        ? "text-red-800"
-                        : "text-green-800"
-                    }`}
+              {notifications
+                .filter(notification => notification.quantity < 3)
+                .map((notification, index) => (
+                  <div
+                    key={index}
+                    className="p-4 rounded-lg border-l-4 bg-red-100 border-red-500"
                   >
-                    {notification.msg}
-                  </p>
-                  <p
-                    className={`text-sm ${
-                      notification.quantity < 3
-                        ? "text-red-600"
-                        : "text-green-600"
-                    }`}
-                  >
-                    {notification.brand} - {notification.name} (Qty:{" "}
-                    {notification.quantity})
-                  </p>
-                </div>
-              ))}
+                    <p className="font-semibold text-red-800">
+                      {notification.msg}
+                    </p>
+                    <p className="text-sm text-red-600">
+                      {notification.brand} - {notification.name} (Qty:{" "}
+                      {notification.quantity})
+                    </p>
+                  </div>
+                ))}
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
         import axios from "axios";
 
 const API = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:8000", // adjust if your FastAPI runs elsewhere
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:8001", // adjust if your FastAPI runs elsewhere
   headers: {
     "Content-Type": "application/json"
   }

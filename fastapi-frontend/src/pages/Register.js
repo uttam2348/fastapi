@@ -16,7 +16,7 @@ export default function Register() {
     try {
       const response = await API.post("/auth/users", form);
 
-      setMessage("Registration successful! Redirecting to login...");
+      setMessage(response.data.msg || "Registration successful! Redirecting to login...");
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || "Could not register.";

@@ -21,7 +21,7 @@ export default function Login() {
 
       // POST to FastAPI OAuth2 token endpoint (expects form data!)
       const response = await API.post("/auth/token", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
       });
 
       const data = response.data;
