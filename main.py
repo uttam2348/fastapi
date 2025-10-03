@@ -384,6 +384,7 @@ async def list_items():
             "name": 1,
             "price": 1,
             "quantity": 1,
+            "description": 1,
             "in_stock": 1,
             "created_by": 1
         }
@@ -807,4 +808,4 @@ async def upload_image(file: UploadFile = File(...), user=Depends(get_current_us
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8001)

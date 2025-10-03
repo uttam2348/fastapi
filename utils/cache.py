@@ -1,8 +1,16 @@
 import json
-import aioredis
 from typing import Any, Optional
 import os
 from dotenv import load_dotenv
+
+# Temporarily disable aioredis due to compatibility issues
+# Try to import aioredis, fall back to None if not available
+# try:
+#     import aioredis
+#     REDIS_AVAILABLE = True
+# except ImportError:
+aioredis = None
+REDIS_AVAILABLE = False
 
 load_dotenv()
 
@@ -16,6 +24,12 @@ class CacheManager:
 
     async def connect(self):
         """Initialize Redis connection"""
+        if not REDIS_AVAILABLE:
+            print("aioredis not available. Using in-memory cache.")
+            self.redis = None
+            self._connected = False
+            return
+            
         try:
             self.redis = aioredis.from_url(REDIS_URL, decode_responses=True)
             await self.redis.ping()
