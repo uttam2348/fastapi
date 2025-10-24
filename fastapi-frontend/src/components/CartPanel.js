@@ -17,7 +17,7 @@ const CartPanel = ({
       <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold">Your Cart</h2>
-          <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700">✖️</button>
+          <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700">×</button>
         </div>
         <div className="mb-4 p-4 border rounded-lg bg-gray-50">
           <h3 className="font-semibold text-lg mb-2">Shipping Address</h3>
@@ -123,7 +123,7 @@ const CartPanel = ({
           <div className="space-y-2">
             <div className="border rounded-lg p-2 flex items-center justify-between">
               <div className="flex items-center">
-                <span className="mr-2">📜</span>
+                <span className="mr-2">📄</span>
                 <p className="text-sm text-gray-600">ISO 9001 Certified</p>
               </div>
               <button className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-sm">View</button>

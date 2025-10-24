@@ -12,16 +12,18 @@ export default function Login() {
     console.log("Login attempt started");
 
     try {
-      // Create form data for OAuth2 token endpoint
-      const formData = new FormData();
-      formData.append("username", username);
-      formData.append("password", password);
+      // Create URLSearchParams for OAuth2 token endpoint
+      const params = new URLSearchParams();
+      params.append("username", username);
+      params.append("password", password);
 
       console.log("Sending login request to: /auth/token");
 
-      // POST to FastAPI OAuth2 token endpoint (expects form data!)
-      const response = await API.post("/auth/token", formData, {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      // POST to FastAPI OAuth2 token endpoint (expects x-www-form-urlencoded)
+      const response = await API.post("/auth/token", params, {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        retry: 3, // Enable retry for this request
+        retryDelay: 1000
       });
 
       const data = response.data;
@@ -37,7 +39,24 @@ export default function Login() {
       console.log("Navigation called");
     } catch (err) {
       console.error("Login error:", err);
-      const errorMessage = err.response?.data?.detail || err.message || "Please check credentials.";
+      
+      // Better error handling
+      let errorMessage = "Login failed. Please try again.";
+      
+      if (err.code === 'ECONNABORTED') {
+        errorMessage = "Connection timeout. Please check your internet connection and try again.";
+      } else if (err.code === 'ERR_NETWORK') {
+        errorMessage = "Network error. Please make sure the server is running and try again.";
+      } else if (err.response?.status === 401) {
+        errorMessage = "Invalid username or password. Please check your credentials.";
+      } else if (err.response?.status === 422) {
+        errorMessage = "Invalid input. Please check your username and password.";
+      } else if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       alert(`Login failed: ${errorMessage}`);
     }
   };

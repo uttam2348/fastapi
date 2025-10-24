@@ -292,7 +292,7 @@ export default function Dashboard() {
 
   // Clear all notifications from database
   const handleClearAllNotifications = async () => {
-    if (!window.confirm("⚠️ WARNING: This will delete ALL notifications from the database. Are you sure you want to continue?")) {
+    if (!window.confirm("WARNING: This will delete ALL notifications from the database. Are you sure you want to continue?")) {
       return;
     }
     
@@ -319,7 +319,7 @@ export default function Dashboard() {
 
   // Clear all items data (admin/superadmin only)
   const handleClearAllItems = async () => {
-    if (!window.confirm("⚠️ WARNING: This will delete ALL items from the database. Users will remain intact. Are you sure you want to continue?")) {
+    if (!window.confirm("WARNING: This will delete ALL items from the database. Users will remain intact. Are you sure you want to continue?")) {
       return;
     }
     
@@ -403,9 +403,9 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 {message.type === "error" ? (
-                  <span className="text-red-500 mr-2">⚠️</span>
+                  <span className="text-red-500 mr-2">!</span>
                 ) : (
-                  <span className="text-green-500 mr-2">✅</span>
+                  <span className="text-green-500 mr-2">✓</span>
                 )}
                 <span className="font-medium">{message.text}</span>
               </div>
@@ -413,7 +413,7 @@ export default function Dashboard() {
                 onClick={() => setMessage({ text: "", type: "", show: false })}
                 className="text-gray-400 hover:text-gray-600"
               >
-                ✖️
+                ×
               </button>
             </div>
           </div>
@@ -457,34 +457,34 @@ export default function Dashboard() {
               onClick={fetchData}
               className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
             >
-              🔄 Refresh Data
+              Refresh Data
             </button>
             <button
               onClick={() => setIsCartOpen(true)}
               className="bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition"
             >
-              🛒 Open Cart ({cart.items?.length || 0})
+              Open Cart ({cart.items?.length || 0})
             </button>
             <button
               onClick={handleClearAllItems}
               className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition"
               disabled={stats.total_items === 0}
             >
-              🧹 Clear All Items
+              Clear All Items
             </button>
             <button
               onClick={handleClearAllNotifications}
               className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition"
               disabled={notifications.length === 0}
             >
-              🧹 Clear All Notifications
+              Clear All Notifications
             </button>
             {(userRole === "admin" || userRole === "superadmin") && (
               <button
                 onClick={() => setIsPayOpen(true)}
                 className="bg-violet-600 text-white px-6 py-3 rounded-lg hover:bg-violet-700 transition"
               >
-                💳 Pay
+                Pay
               </button>
             )}
           </div>
@@ -505,14 +505,14 @@ export default function Dashboard() {
               onClick={handleSearch}
               className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition"
             >
-              🔍 Search
+              Search
             </button>
             {searchQuery && (
               <button
                 onClick={clearSearch}
                 className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition"
               >
-                ✖️ Clear Search
+                × Clear Search
               </button>
             )}
           </div>
@@ -602,7 +602,7 @@ export default function Dashboard() {
         {/* Notifications - Only show low stock alerts */}
         {notifications.filter(notification => notification.quantity < 3).length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">⚠️ Low Stock Alerts</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Low Stock Alerts</h2>
             <div className="space-y-3">
               {notifications
                 .filter(notification => notification.quantity < 3)
@@ -780,7 +780,7 @@ export default function Dashboard() {
             <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold">Payment</h2>
-                <button onClick={() => setIsPayOpen(false)} className="text-gray-500 hover:text-gray-700">✖️</button>
+                <button onClick={() => setIsPayOpen(false)} className="text-gray-500 hover:text-gray-700">×</button>
               </div>
               <p className="text-sm text-gray-600 mb-4">Using items from your cart.</p>
 

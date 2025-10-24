@@ -83,7 +83,7 @@ class Item(BaseModel):
     created_by: Optional[str] = None
 
     @validator('brand', 'name', 'description')
-    def sanitize_string(cls, v):
+    def sanitize_string(cls, v): 
         return v.strip() if isinstance(v, str) else v
 
 
@@ -163,7 +163,7 @@ async def startup():
             await items_collection.update_one({"_id": item["_id"]}, {"$set": {"id": new_id}})
     except Exception as e:
         # Log but don't block startup
-        print(f"⚠️ UUID backfill error: {e}")
+        print(f"UUID backfill error: {e}")
 
 
 # ---------------- SHUTDOWN ----------------
@@ -809,3 +809,5 @@ async def upload_image(file: UploadFile = File(...), user=Depends(get_current_us
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8001)
+
+

@@ -25,7 +25,7 @@ function ProtectedRoute({ children }) {
     } else {
       // Verify token validity with backend
       const verifyToken = async () => {
-        const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+        const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8001";
         try {
           const response = await fetch(`${API_URL}/auth/me`, {
             headers: {
