@@ -8,10 +8,6 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 
-<<<<<<< HEAD
-
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
-=======
 # Optimized connection pool settings
 client = motor.motor_asyncio.AsyncIOMotorClient(
     MONGO_URI,
@@ -23,7 +19,6 @@ client = motor.motor_asyncio.AsyncIOMotorClient(
     socketTimeoutMS=45000,  # Close sockets after 45 seconds of inactivity
     waitQueueTimeoutMS=5000,  # Wait 5 seconds for a connection from the pool
 )
->>>>>>> master
 db = client[MONGO_DB_NAME]
 
 
@@ -39,18 +34,11 @@ payments_collection = db["payments"]
 async def check_mongo_connection():
     try:
         await client.admin.command("ping")
-<<<<<<< HEAD
-        print("✅ Connected to MongoDB")
-    except Exception as e:
-        print("❌ MongoDB connection failed:", e)
-=======
-        print("Connected to MongoDB")
-
+        print(" Connected to MongoDB")
         # Create indexes for better query performance
         await create_indexes()
     except Exception as e:
-        print("MongoDB connection failed:", e)
-
+        print(f" MongoDB connection failed: {e}")
 
 async def create_indexes():
     """Create database indexes for optimized queries"""
@@ -72,8 +60,3 @@ async def create_indexes():
         print("Database indexes created successfully")
     except Exception as e:
         print(f"Index creation error: {e}")
->>>>>>> master
-
-
-
-

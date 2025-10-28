@@ -15,9 +15,9 @@ def check_requirements():
     print("Checking requirements...")
     
     # Check if Python virtual environment exists
-    if not os.path.exists("venv"):
+    if not os.path.exists("myenv"):
         print("Virtual environment not found!")
-        print("Please run: python -m venv venv")
+        print("Please run: python -m venv myenv")
         return False
     
     # Check if Node.js dependencies are installed
@@ -42,10 +42,10 @@ def start_backend():
     
     # Activate virtual environment and start backend
     if os.name == 'nt':  # Windows
-        activate_script = "venv\\Scripts\\activate.bat"
+        activate_script = "myenv\\Scripts\\activate.bat"
         backend_cmd = f"{activate_script} && python start_backend.py"
     else:  # Unix/Linux/Mac
-        activate_script = "venv/bin/activate"
+        activate_script = "myenv/bin/activate"
         backend_cmd = f"source {activate_script} && python start_backend.py"
     
     try:

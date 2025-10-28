@@ -1,32 +1,13 @@
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-<<<<<<< HEAD
 from pydantic import BaseModel
-=======
-from pydantic import BaseModel, validator
->>>>>>> master
 from typing import List, Optional
 from datetime import datetime
 import uuid
 import os
-<<<<<<< HEAD
 from fastapi.middleware.cors import CORSMiddleware
-=======
-import re
-import asyncio
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from dotenv import load_dotenv
-
-load_dotenv()
-
-SECRET_KEY = os.getenv("SECRET_KEY", "fallback_secret")
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "fastapi_db")
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*").split(",")
-TOKEN_EXPIRE_HOURS = int(os.getenv("TOKEN_EXPIRE_HOURS", 1))
->>>>>>> master
+from pymongo import ReturnDocument
 from db.db import (
     check_mongo_connection,
     users_collection,
@@ -41,18 +22,6 @@ from db.db import (
 from utils.token_helper import create_token, decode_token
 from utils.password_helper import hash_password, verify_password
 from utils.search_helper import mongo_text_search
-<<<<<<< HEAD
-=======
-from utils.cache import (
-    cache_manager,
-    get_items_list_key,
-    get_item_detail_key,
-    get_user_data_key,
-    get_search_results_key,
-    get_items_count_key
-)
-from utils.image_helper import save_and_compress_image
->>>>>>> master
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -66,25 +35,6 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role: str = "user"
-<<<<<<< HEAD
-=======
-    email: Optional[str] = None
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-
-    @validator('password')
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[a-zA-Z]', v):
-            raise ValueError('Password must contain at least one letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one number')
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one symbol')
-        return v
->>>>>>> master
 
 
 class Item(BaseModel):
@@ -96,13 +46,6 @@ class Item(BaseModel):
     in_stock: bool = True
     created_by: Optional[str] = None
 
-<<<<<<< HEAD
-=======
-    @validator('brand', 'name', 'description')
-    def sanitize_string(cls, v): 
-        return v.strip() if isinstance(v, str) else v
-
->>>>>>> master
 
 class ItemUpdate(BaseModel):
     brand: Optional[str] = None
@@ -137,25 +80,14 @@ class PaymentChargeRequest(BaseModel):
     discount: Optional[float] = 0.0
     method: Optional[str] = "cash"  # cash/card/upi
 
-<<<<<<< HEAD
-=======
-
-class UserProfile(BaseModel):
-    email: Optional[str] = None
-    full_name: Optional[str] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-
->>>>>>> master
-# Create uploads directory if it doesn't exist
+# Creatuploads directory if it doesn't exist
 UPLOAD_DIR = "uploads"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
-
+e 
 # Mount static files for serving images
 app = FastAPI(title="Inventory API", version="1.0")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-<<<<<<< HEAD
 
 app.add_middleware(
     CORSMiddleware,
@@ -164,34 +96,16 @@ app.add_middleware(
         "http://localhost:3001",   # Alternative port
         "http://127.0.0.1:3000"
     ],
-=======
-app.mount("/uploads/compressed", StaticFiles(directory="uploads/compressed"), name="compressed")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[origin.strip() for origin in CORS_ALLOWED_ORIGINS],
->>>>>>> master
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-<<<<<<< HEAD
-=======
-# Add GZip compression middleware
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-
->>>>>>> master
 
 # ---------------- STARTUP ----------------
 @app.on_event("startup")
 async def startup():
     await check_mongo_connection()
-<<<<<<< HEAD
-=======
-    await cache_manager.connect()
-
->>>>>>> master
     # Backfill UUIDs for items missing an 'id'
     try:
         cursor = items_collection.find({"$or": [{"id": {"$exists": False}}, {"id": None}, {"id": ""}]})
@@ -200,20 +114,9 @@ async def startup():
             await items_collection.update_one({"_id": item["_id"]}, {"$set": {"id": new_id}})
     except Exception as e:
         # Log but don't block startup
-<<<<<<< HEAD
         print(f"⚠️ UUID backfill error: {e}")
 
 
-=======
-        print(f"UUID backfill error: {e}")
-
-
-# ---------------- SHUTDOWN ----------------
-@app.on_event("shutdown")
-async def shutdown():
-    await cache_manager.disconnect()
-
->>>>>>> master
 
 # ---------------- HELPERS ----------------
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -248,15 +151,7 @@ async def create_user(user: UserCreate):
         "id": user_id,
         "username": user.username,
         "hashed_password": hash_password(user.password),
-<<<<<<< HEAD
         "role": user.role
-=======
-        "role": user.role,
-        "email": user.email,
-        "full_name": user.full_name,
-        "phone": user.phone,
-        "address": user.address
->>>>>>> master
     })
     return {"msg": f"{user.role.capitalize()} created successfully", "id": user_id}
 
@@ -270,42 +165,9 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": token, "token_type": "bearer"}
 
 
-<<<<<<< HEAD
 @app.get("/auth/me", tags=["Auth"])
 async def me(user=Depends(get_current_user)):
     return {"username": user.get("username"), "role": user.get("role")}
-=======
-@app.post("/auth/refresh", response_model=Token, tags=["Auth"])
-async def refresh_token(user=Depends(get_current_user)):
-    # If token is valid, issue a new one
-    token = create_token({"sub": user["username"], "role": user["role"]})
-    return {"access_token": token, "token_type": "bearer"}
-
-
-@app.get("/auth/me", tags=["Auth"])
-async def me(user=Depends(get_current_user)):
-    cache_key = get_user_data_key(user["username"])
-
-    # Try to get from cache first
-    cached_user = await cache_manager.get(cache_key)
-    if cached_user:
-        return cached_user
-
-    # Return user data
-    user_data = {
-        "username": user.get("username"),
-        "role": user.get("role"),
-        "email": user.get("email"),
-        "full_name": user.get("full_name"),
-        "phone": user.get("phone"),
-        "address": user.get("address")
-    }
-
-    # Cache the result
-    await cache_manager.set(cache_key, user_data)
-
-    return user_data
->>>>>>> master
 
 
 # ---------------- ITEMS ----------------
@@ -334,13 +196,6 @@ async def create_item(item: Item, user=Depends(get_current_user)):
 
     await items_collection.insert_one(item_data)
 
-<<<<<<< HEAD
-=======
-    # Clear cache for items list and count
-    await cache_manager.delete(get_items_list_key())
-    await cache_manager.delete(get_items_count_key())
-
->>>>>>> master
     return {**item.dict(), "id": item_id, "in_stock": in_stock, "created_by": user["username"]}
 
 
@@ -351,7 +206,7 @@ async def buy_item(brand: str):
     updated = await items_collection.find_one_and_update(
         {"brand": {"$regex": f"^{brand}$", "$options": "i"}, "quantity": {"$gt": 0}},
         {"$inc": {"quantity": -1}},
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
         projection={"_id": 0}
     )
 
@@ -388,15 +243,6 @@ async def buy_item(brand: str):
         "msg": notification_msg,
         "notified_at": datetime.utcnow()
     })
-
-<<<<<<< HEAD
-=======
-    # Clear cache for affected items
-    await cache_manager.delete(get_items_list_key())
-    await cache_manager.delete(get_items_count_key())
-    await cache_manager.delete(get_item_detail_key(updated["brand"]))
-
->>>>>>> master
     return {"msg": f"Purchased {updated['name']} successfully"}
 
 
@@ -426,98 +272,28 @@ async def sold_items(brand: str):
 # ---------------- LIST ----------------
 @app.get("/items", response_model=List[Item], tags=["List"])
 async def list_items():
-<<<<<<< HEAD
     return await items_collection.find({}, {"_id": 0}).to_list(length=100)
 
 @app.get("/items/count", tags=["List"])
 async def get_items_count():
-=======
-    cache_key = get_items_list_key()
-
-    # Try to get from cache first
-    cached_items = await cache_manager.get(cache_key)
-    if cached_items:
-        return cached_items
-
-    # Fetch from database with optimized projection
-    items = await items_collection.find(
-        {},
-        {
-            "_id": 0,
-            "id": 1,
-            "brand": 1,
-            "name": 1,
-            "price": 1,
-            "quantity": 1,
-            "description": 1,
-            "in_stock": 1,
-            "created_by": 1
-        }
-    ).to_list(length=100)
-
-    # Cache the result
-    await cache_manager.set(cache_key, items)
-
-    return items
-
-@app.get("/items/count", tags=["List"])
-async def get_items_count():
-    cache_key = get_items_count_key()
-
-    # Try to get from cache first
-    cached_count = await cache_manager.get(cache_key)
-    if cached_count:
-        return cached_count
-
-    # Fetch from database
->>>>>>> master
     total_items = await items_collection.count_documents({})
     in_stock_count = await items_collection.count_documents({"in_stock": True})
     out_of_stock_count = await items_collection.count_documents({"in_stock": False})
 
     items = await items_collection.find({}, {"_id": 0, "name": 1, "quantity": 1}).to_list(length=100)
 
-<<<<<<< HEAD
     return {
-=======
-    result = {
->>>>>>> master
         "total_items": total_items,
         "in_stock": in_stock_count,
         "out_of_stock": out_of_stock_count,
         "items": items
     }
 
-<<<<<<< HEAD
 @app.get("/items/{brand}", response_model=Item, tags=["List"])
 async def get_item(brand: str):
     item = await items_collection.find_one({"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0})
     if not item:
         raise HTTPException(404, detail="Item not found")
-=======
-    # Cache the result
-    await cache_manager.set(cache_key, result)
-
-    return result
-
-@app.get("/items/{brand}", response_model=Item, tags=["List"])
-async def get_item(brand: str):
-    cache_key = get_item_detail_key(brand)
-
-    # Try to get from cache first
-    cached_item = await cache_manager.get(cache_key)
-    if cached_item:
-        return cached_item
-
-    # Fetch from database
-    item = await items_collection.find_one({"brand": {"$regex": f"^{brand}$", "$options": "i"}}, {"_id": 0})
-    if not item:
-        raise HTTPException(404, detail="Item not found")
-
-    # Cache the result
-    await cache_manager.set(cache_key, item)
-
->>>>>>> master
     return item
 
 
@@ -539,18 +315,10 @@ async def update_item(brand: str, item: Item, user=Depends(require_admin_or_supe
     updated_item = await items_collection.find_one_and_update(
         {"brand": {"$regex": f"^{brand}$", "$options": "i"}},
         {"$set": item_dict},
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
         projection={"_id": 0}
     )
 
-<<<<<<< HEAD
-=======
-    # Clear cache for affected items
-    await cache_manager.delete(get_items_list_key())
-    await cache_manager.delete(get_items_count_key())
-    await cache_manager.delete(get_item_detail_key(brand))
-
->>>>>>> master
     return {
         "msg": "Item updated successfully",
         "before_update": existing_item,
@@ -586,37 +354,9 @@ async def list_items_paged(
             {"description": {"$regex": q, "$options": "i"}},
         ]
 
-<<<<<<< HEAD
     total = await items_collection.count_documents(query)
     cursor = items_collection.find(query, {"_id": 0}).sort(sort, order).skip(skip).limit(limit)
     data = await cursor.to_list(length=limit)
-=======
-    # Use aggregation pipeline for better performance on large datasets
-    pipeline = [
-        {"$match": query},
-        {"$sort": {sort: order}},
-        {"$skip": skip},
-        {"$limit": limit},
-        {"$project": {
-            "_id": 0,
-            "id": 1,
-            "brand": 1,
-            "name": 1,
-            "price": 1,
-            "quantity": 1,
-            "in_stock": 1,
-            "created_by": 1,
-            "description": {"$substr": ["$description", 0, 100]}  # Limit description length
-        }}
-    ]
-
-    # Get total count and data in parallel for better performance
-    total_task = items_collection.count_documents(query)
-    data_task = items_collection.aggregate(pipeline).to_list(length=limit)
-
-    total, data = await asyncio.gather(total_task, data_task)
-
->>>>>>> master
     return {"data": data, "total": total, "skip": skip, "limit": limit}
 
 
@@ -636,18 +376,10 @@ async def patch_item(brand: str, item: ItemUpdate, user=Depends(require_admin_or
     updated_item = await items_collection.find_one_and_update(
         {"brand": {"$regex": f"^{brand}$", "$options": "i"}},
         {"$set": {**update_dict, "updated_by": user["username"], "updated_at": datetime.utcnow()}},
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
         projection={"_id": 0}
     )
 
-<<<<<<< HEAD
-=======
-    # Clear cache for affected items
-    await cache_manager.delete(get_items_list_key())
-    await cache_manager.delete(get_items_count_key())
-    await cache_manager.delete(get_item_detail_key(brand))
-
->>>>>>> master
     return {"msg": "Item updated successfully", "after_update": updated_item}
 
 @app.delete("/items/{brand}", tags=["Update/Delete"])
@@ -664,14 +396,6 @@ async def delete_item(brand: str, user=Depends(require_admin_or_superadmin)):
     await deleted_items_collection.insert_one(archive_item)
     await items_collection.delete_one({"brand": {"$regex": f"^{brand}$", "$options": "i"}})
 
-<<<<<<< HEAD
-=======
-    # Clear cache for affected items
-    await cache_manager.delete(get_items_list_key())
-    await cache_manager.delete(get_items_count_key())
-    await cache_manager.delete(get_item_detail_key(brand))
-
->>>>>>> master
     return {
         "msg": "Item deleted successfully",
         "deleted_item": {
@@ -686,35 +410,15 @@ async def delete_item(brand: str, user=Depends(require_admin_or_superadmin)):
 # ---------------- SEARCH ----------------
 @app.get("/items/search", tags=["Search"])
 async def search_items(q: str):
-<<<<<<< HEAD
     return await mongo_text_search(q)
-=======
-    cache_key = get_search_results_key(q)
-
-    # Try to get from cache first
-    cached_results = await cache_manager.get(cache_key)
-    if cached_results:
-        return cached_results
-
-    # Perform search
-    results = await mongo_text_search(q)
-
-    # Cache the result
-    await cache_manager.set(cache_key, results)
-
-    return results
->>>>>>> master
 
 
 # ---------------- NOTIFICATIONS ----------------
 @app.get("/notifications", tags=["Notifications"])
 async def get_notifications(user=Depends(get_current_user)):
-<<<<<<< HEAD
     if user["role"] not in ["admin", "superadmin"]:
         raise HTTPException(403, detail="Admins or Superadmins only")
 
-=======
->>>>>>> master
     limit = 50 if user["role"] == "admin" else 100
     notifications = await notifications_collection.find(
         {"created_by": user["username"]}, {"_id": 0}
@@ -887,33 +591,3 @@ async def payment_charge(payload: PaymentChargeRequest, user=Depends(get_current
     }
     await payments_collection.insert_one(doc)
     return {"msg": "Payment recorded", "payment_id": payment_id, "amounts": quote}
-<<<<<<< HEAD
-=======
-
-
-# ---------------- IMAGES ----------------
-@app.post("/images/upload", tags=["Images"])
-async def upload_image(file: UploadFile = File(...), user=Depends(get_current_user)):
-    """Upload and compress an image"""
-    if not file.content_type.startswith('image/'):
-        raise HTTPException(400, detail="File must be an image")
-
-    try:
-        compressed_path = await save_and_compress_image(file, file.filename)
-        filename = os.path.basename(compressed_path)
-
-        return {
-            "msg": "Image uploaded and compressed successfully",
-            "filename": filename,
-            "url": f"/uploads/compressed/{filename}"
-        }
-    except Exception as e:
-        raise HTTPException(500, detail=f"Image upload failed: {str(e)}")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8001)
-
-
->>>>>>> master

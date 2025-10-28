@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-<<<<<<< HEAD
-import axios from "axios";
-=======
 import API from "../api";
->>>>>>> master
 
 export default function Register() {
   const [form, setForm] = useState({ username: "", password: "" });
@@ -18,23 +14,13 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-<<<<<<< HEAD
-      await axios.post("http://127.0.0.1:8000/auth/users", form);
-      setMessage("Registration successful! Redirecting to login...");
-      setTimeout(() => navigate("/login"), 2000);
-    } catch (err) {
-      setMessage("Error: Could not register.");
-      console.error("Registration error:", err.response?.data || err);
-=======
       const response = await API.post("/auth/users", form);
-
       setMessage(response.data.msg || "Registration successful! Redirecting to login...");
-      setTimeout(() => navigate("/login"), 2000);
+      setTimeout(() => navigate("/login"), 1500);
     } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || "Could not register.";
       setMessage(`Error: ${errorMessage}`);
       console.error("Registration error:", err);
->>>>>>> master
     }
   };
 
@@ -45,7 +31,7 @@ export default function Register() {
           Create an Account
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {message && <p className="text-green-600 text-center">{message}</p>}
+          {message && <p className={`text-center ${message.startsWith("Error") ? "text-red-600" : "text-green-600"}`}>{message}</p>}
           <input
             type="text"
             name="username"

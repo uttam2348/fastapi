@@ -1,36 +1,30 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
-=======
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import API from "../api";
 
 // Lazy load heavy components
 const StatsCards = React.lazy(() => import("../components/StatsCards"));
 const CartPanel = React.lazy(() => import("../components/CartPanel"));
->>>>>>> master
 
 export default function Dashboard() {
-  console.log("Dashboard component rendered");
-  
+  // Data
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState({ username: "", items: [] });
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [stats, setStats] = useState({});
+
+  // UI state
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
   const [lastRefresh, setLastRefresh] = useState(new Date());
-<<<<<<< HEAD
   const [refreshCountdown, setRefreshCountdown] = useState(30);
-=======
-  const [refreshCountdown, setRefreshCountdown] = useState(604800);
->>>>>>> master
   const [message, setMessage] = useState({ text: "", type: "", show: false });
   const [userRole, setUserRole] = useState("");
-  
-  // Form states
+
+  // Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+
+  // Create/Edit form
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -42,66 +36,47 @@ export default function Dashboard() {
     description: ""
   });
 
-<<<<<<< HEAD
-  // Get token for API calls (memoized)
-  const getAuthHeaders = useCallback(() => ({
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
-    "Content-Type": "application/json"
-  }), []);
-=======
-  // API instance handles auth headers
->>>>>>> master
+  // Payments
+  const [isPayOpen, setIsPayOpen] = useState(false);
+  const [taxRate, setTaxRate] = useState(0);
+  const [discount, setDiscount] = useState(0);
+  const [payMethod, setPayMethod] = useState("cash");
+  const [quote, setQuote] = useState(null);
 
-  // Show message function
   const showMessage = (text, type = "success") => {
     setMessage({ text, type, show: true });
     setTimeout(() => setMessage({ text: "", type: "", show: false }), 5000);
   };
 
-  // (moved below after function definitions)
-
+  // Fetch core data
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [itemsRes, statsRes, notificationsRes] = await Promise.all([
-<<<<<<< HEAD
-        axios.get("http://127.0.0.1:8000/items"),
-        axios.get("http://127.0.0.1:8000/items/count"),
-        axios.get("http://127.0.0.1:8000/notifications", { headers: getAuthHeaders() })
-      ]);
-      
-=======
         API.get("/items"),
         API.get("/items/count"),
-        API.get("/notifications")
+        API.get("/notifications").catch((err) => {
+          // 403 expected for non-admin; treat as empty list
+          if (err.response?.status === 403) {
+            return { data: { notifications: [] } };
+          }
+          throw err;
+        })
       ]);
 
->>>>>>> master
-      setItems(itemsRes.data);
-      setStats(statsRes.data);
-      setNotifications(notificationsRes.data.notifications || []);
+      setItems(itemsRes.data || []);
+      setStats(statsRes.data || {});
+      setNotifications(notificationsRes.data?.notifications || []);
       setLastRefresh(new Date());
-<<<<<<< HEAD
       setRefreshCountdown(30);
-=======
-      setRefreshCountdown(604800);
->>>>>>> master
     } catch (error) {
       console.error("Error fetching data:", error);
       if (error.response?.status === 403) {
-        // User doesn't have permission for notifications
         setNotifications([]);
       }
     } finally {
       setLoading(false);
     }
-<<<<<<< HEAD
-  }, [getAuthHeaders]);
-
-  const fetchRole = useCallback(async () => {
-    try {
-      const res = await axios.get("http://127.0.0.1:8000/auth/me", { headers: getAuthHeaders() });
-=======
   }, []);
 
   const fetchNotificationsOnly = useCallback(async () => {
@@ -109,9 +84,7 @@ export default function Dashboard() {
       const notificationsRes = await API.get("/notifications");
       setNotifications(notificationsRes.data.notifications || []);
     } catch (error) {
-      console.error("Error fetching notifications:", error);
       if (error.response?.status === 403) {
-        // User doesn't have permission for notifications
         setNotifications([]);
       }
     }
@@ -120,47 +93,27 @@ export default function Dashboard() {
   const fetchRole = useCallback(async () => {
     try {
       const res = await API.get("/auth/me");
->>>>>>> master
       setUserRole(res.data?.role || "");
-    } catch (e) {
-      // ignore; role will remain empty
+    } catch {
+      setUserRole("");
     }
-<<<<<<< HEAD
-  }, [getAuthHeaders]);
-=======
   }, []);
->>>>>>> master
 
-  // -------- CART API --------
+  // Cart APIs
   const fetchCart = useCallback(async () => {
     try {
-<<<<<<< HEAD
-      const res = await axios.get("http://127.0.0.1:8000/cart", { headers: getAuthHeaders() });
-=======
       const res = await API.get("/cart");
->>>>>>> master
       setCart(res.data);
     } catch (error) {
       console.error("Error fetching cart:", error);
     }
-<<<<<<< HEAD
-  }, [getAuthHeaders]);
-
-  const addToCart = async (brand, quantity = 1) => {
-    try {
-      await axios.post(`http://127.0.0.1:8000/cart/add?brand=${encodeURIComponent(brand)}&quantity=${quantity}`, null, {
-        headers: getAuthHeaders()
-      });
-      await fetchCart();
-=======
   }, []);
 
   const addToCart = async (brand, quantity = 1) => {
     try {
       await API.post(`/cart/add?brand=${encodeURIComponent(brand)}&quantity=${quantity}`);
       await fetchCart();
-      await fetchData(); // Refresh inventory to show updated quantities
->>>>>>> master
+      await fetchData(); // refresh inventory after adding
       showMessage(`Added ${brand} to cart`);
       setIsCartOpen(true);
     } catch (error) {
@@ -169,51 +122,11 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch all data on component mount (after callbacks are defined)
-  useEffect(() => {
-    fetchData();
-    fetchCart();
-    fetchRole();
-
-<<<<<<< HEAD
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      setRefreshCountdown(prev => {
-        if (prev <= 1) {
-          fetchData();
-          return 30;
-=======
-    // Auto-refresh notifications every 30 seconds (only notifications, not full data)
-    const interval = setInterval(() => {
-      setRefreshCountdown(prev => {
-        if (prev <= 1) {
-          fetchNotificationsOnly(); // Only refresh notifications, not full data
-          return 604800;
->>>>>>> master
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-<<<<<<< HEAD
-  }, [fetchData, fetchCart, fetchRole]);
-
-  const updateCartQty = async (brand, quantity) => {
-    try {
-      await axios.post(`http://127.0.0.1:8000/cart/update?brand=${encodeURIComponent(brand)}&quantity=${quantity}`, null, {
-        headers: getAuthHeaders()
-      });
-      await fetchCart();
-=======
-  }, [fetchData, fetchCart, fetchRole, fetchNotificationsOnly]);
-
   const updateCartQty = async (brand, quantity) => {
     try {
       await API.post(`/cart/update?brand=${encodeURIComponent(brand)}&quantity=${quantity}`);
       await fetchCart();
-      await fetchData(); // Refresh inventory to show updated quantities
->>>>>>> master
+      await fetchData(); // refresh inventory after updating cart
     } catch (error) {
       console.error("Error updating cart:", error);
       showMessage(error.response?.data?.detail || "Error updating cart", "error");
@@ -222,11 +135,7 @@ export default function Dashboard() {
 
   const clearCart = async () => {
     try {
-<<<<<<< HEAD
-      await axios.post("http://127.0.0.1:8000/cart/clear", null, { headers: getAuthHeaders() });
-=======
       await API.post("/cart/clear");
->>>>>>> master
       await fetchCart();
       showMessage("Cart cleared");
     } catch (error) {
@@ -237,16 +146,10 @@ export default function Dashboard() {
 
   const checkoutCart = async () => {
     try {
-<<<<<<< HEAD
-      const res = await axios.post("http://127.0.0.1:8000/cart/checkout", null, { headers: getAuthHeaders() });
-      await fetchCart();
-      await fetchData();
-=======
       const res = await API.post("/cart/checkout");
       await fetchCart();
-      await fetchData(); // Refresh inventory to show updated quantities after purchase
->>>>>>> master
-      const ok = (res.data?.results || []).filter(r => r.status === "ok").length;
+      await fetchData(); // refresh inventory after checkout
+      const ok = (res.data?.results || []).filter((r) => r.status === "ok").length;
       const total = (res.data?.results || []).length;
       showMessage(`Checkout complete: ${ok}/${total} items purchased`);
     } catch (error) {
@@ -255,15 +158,76 @@ export default function Dashboard() {
     }
   };
 
-  // -------- PAYMENTS (ADMIN/SUPERADMIN) --------
-  const [isPayOpen, setIsPayOpen] = useState(false);
-  const [taxRate, setTaxRate] = useState(0);
-  const [discount, setDiscount] = useState(0);
-  const [payMethod, setPayMethod] = useState("cash");
-  const [quote, setQuote] = useState(null);
+  // Search
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const response = await API.get(`/items/search?q=${encodeURIComponent(searchQuery)}`);
+      setSearchResults(response.data || []);
+    } catch (error) {
+      console.error("Error searching items:", error);
+      setSearchResults([]);
+    }
+  };
 
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  // Admin: Clear all notifications
+  const handleClearAllNotifications = async () => {
+    if (!window.confirm("WARNING: This will delete ALL notifications from the database. Are you sure you want to continue?")) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await API.delete("/notifications/clear");
+      setNotifications([]);
+      await fetchData();
+      showMessage(response.data.msg || "Notifications cleared");
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+      showMessage(error.response?.data?.detail || "Error clearing notifications", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Admin: Clear all items (iterates through deletes)
+  const handleClearAllItems = async () => {
+    if (!window.confirm("WARNING: This will delete ALL items from the database. Users will remain intact. Are you sure you want to continue?")) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const itemsResponse = await API.get("/items");
+      const allItems = itemsResponse.data || [];
+      for (const item of allItems) {
+        try {
+          await API.delete(`/items/${encodeURIComponent(item.brand)}`);
+        } catch (error) {
+          console.error(`Error deleting item ${item.brand}:`, error);
+        }
+      }
+      setItems([]);
+      setSearchResults([]);
+      await fetchData();
+      showMessage("All items have been cleared successfully! Users remain intact.");
+    } catch (error) {
+      console.error("Error clearing items:", error);
+      showMessage("Error clearing items. Please check console for details.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Payments helpers
   const buildCartItemsForPayment = () => {
-    return (cart.items || []).map(ci => ({
+    return (cart.items || []).map((ci) => ({
       item_id: ci.item_id || "",
       brand: ci.brand,
       name: ci.name,
@@ -275,11 +239,7 @@ export default function Dashboard() {
   const getQuote = async () => {
     try {
       const payload = { items: buildCartItemsForPayment(), tax_rate: Number(taxRate) || 0, discount: Number(discount) || 0 };
-<<<<<<< HEAD
-      const res = await axios.post("http://127.0.0.1:8000/payments/quote", payload, { headers: getAuthHeaders() });
-=======
       const res = await API.post("/payments/quote", payload);
->>>>>>> master
       setQuote(res.data);
     } catch (e) {
       setQuote(null);
@@ -290,11 +250,7 @@ export default function Dashboard() {
   const chargePayment = async () => {
     try {
       const payload = { items: buildCartItemsForPayment(), tax_rate: Number(taxRate) || 0, discount: Number(discount) || 0, method: payMethod };
-<<<<<<< HEAD
-      const res = await axios.post("http://127.0.0.1:8000/payments/charge", payload, { headers: getAuthHeaders() });
-=======
       const res = await API.post("/payments/charge", payload);
->>>>>>> master
       showMessage(`Payment recorded: ${res.data?.payment_id}`);
       setQuote(null);
       setIsPayOpen(false);
@@ -303,217 +259,27 @@ export default function Dashboard() {
     }
   };
 
-  // Create new item
-  const handleCreateItem = async (e) => {
-    e.preventDefault();
-    try {
-<<<<<<< HEAD
-      const response = await axios.post("http://127.0.0.1:8000/items", formData, {
-        headers: getAuthHeaders()
-      });
-      
-=======
-      const response = await API.post("/items", formData);
+  // Effects
+  useEffect(() => {
+    fetchData();
+    fetchCart();
+    fetchRole();
 
->>>>>>> master
-      setItems([...items, response.data]);
-      setShowCreateForm(false);
-      setFormData({ brand: "", name: "", price: "", quantity: "", description: "" });
-      fetchData(); // Refresh stats
-      showMessage("Item created successfully!");
-    } catch (error) {
-      console.error("Error creating item:", error);
-      showMessage(error.response?.data?.detail || "Error creating item", "error");
-    }
-  };
-
-  // Update item
-  const handleUpdateItem = async (e) => {
-    e.preventDefault();
-    try {
-<<<<<<< HEAD
-      const response = await axios.put(`http://127.0.0.1:8000/items/${editingItem.brand}`, formData, {
-        headers: getAuthHeaders()
-      });
-      
-      setItems(items.map(item => 
-=======
-      const response = await API.put(`/items/${editingItem.brand}`, formData);
-
-      setItems(items.map(item =>
->>>>>>> master
-        item.brand === editingItem.brand ? response.data.after_update : item
-      ));
-      setShowEditForm(false);
-      setEditingItem(null);
-      setFormData({ brand: "", name: "", price: "", quantity: "", description: "" });
-      fetchData(); // Refresh stats
-      showMessage("Item updated successfully!");
-    } catch (error) {
-      console.error("Error updating item:", error);
-      showMessage(error.response?.data?.detail || "Error updating item", "error");
-    }
-  };
-
-  // Delete item
-  const handleDeleteItem = async (brand) => {
-    if (window.confirm(`Are you sure you want to delete ${brand}?`)) {
-      try {
-<<<<<<< HEAD
-        await axios.delete(`http://127.0.0.1:8000/items/${brand}`, {
-          headers: getAuthHeaders()
-        });
-        
-=======
-        await API.delete(`/items/${brand}`);
-
->>>>>>> master
-        setItems(items.filter(item => item.brand !== brand));
-        fetchData(); // Refresh stats
-        showMessage("Item deleted successfully!");
-      } catch (error) {
-        console.error("Error deleting item:", error);
-        showMessage(error.response?.data?.detail || "Error deleting item", "error");
-      }
-    }
-  };
-
-  // Buy item
-  const handleBuyItem = async (brand) => {
-    try {
-<<<<<<< HEAD
-      const response = await axios.post(`http://127.0.0.1:8000/items/buy/${brand}`);
-=======
-      const response = await API.post(`/items/buy/${brand}`);
->>>>>>> master
-      showMessage(response.data.msg);
-      fetchData(); // Refresh data to show updated quantities
-    } catch (error) {
-      console.error("Error buying item:", error);
-      showMessage(error.response?.data?.detail || "Error buying item", "error");
-    }
-  };
-
-  // Search items
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-<<<<<<< HEAD
-    
-    try {
-      const response = await axios.get(`http://127.0.0.1:8000/items/search?q=${searchQuery}`);
-=======
-
-    try {
-      const response = await API.get(`/items/search?q=${searchQuery}`);
->>>>>>> master
-      setSearchResults(response.data);
-    } catch (error) {
-      console.error("Error searching items:", error);
-      setSearchResults([]);
-    }
-  };
-
-  // Clear all notifications from database
-  const handleClearAllNotifications = async () => {
-<<<<<<< HEAD
-    if (!window.confirm("⚠️ WARNING: This will delete ALL notifications from the database. Are you sure you want to continue?")) {
-=======
-    if (!window.confirm("WARNING: This will delete ALL notifications from the database. Are you sure you want to continue?")) {
->>>>>>> master
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Clear notifications using backend endpoint
-<<<<<<< HEAD
-      const response = await axios.delete("http://127.0.0.1:8000/notifications/clear", { 
-        headers: getAuthHeaders() 
-      });
-=======
-      const response = await API.delete("/notifications/clear");
->>>>>>> master
-      
-      // Clear local state
-      setNotifications([]);
-      
-      // Refresh data to update stats
-      await fetchData();
-      
-      showMessage(response.data.msg);
-    } catch (error) {
-      console.error("Error clearing notifications:", error);
-      showMessage(error.response?.data?.detail || "Error clearing notifications", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Clear all items data (admin/superadmin only)
-  const handleClearAllItems = async () => {
-<<<<<<< HEAD
-    if (!window.confirm("⚠️ WARNING: This will delete ALL items from the database. Users will remain intact. Are you sure you want to continue?")) {
-=======
-    if (!window.confirm("WARNING: This will delete ALL items from the database. Users will remain intact. Are you sure you want to continue?")) {
->>>>>>> master
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Get all items first
-<<<<<<< HEAD
-      const itemsResponse = await axios.get("http://127.0.0.1:8000/items");
-      const allItems = itemsResponse.data;
-      
-      // Delete each item one by one
-      for (const item of allItems) {
-        try {
-          await axios.delete(`http://127.0.0.1:8000/items/${item.brand}`, {
-            headers: getAuthHeaders()
-          });
-=======
-      const itemsResponse = await API.get("/items");
-      const allItems = itemsResponse.data;
-
-      // Delete each item one by one
-      for (const item of allItems) {
-        try {
-          await API.delete(`/items/${item.brand}`);
->>>>>>> master
-        } catch (error) {
-          console.error(`Error deleting item ${item.brand}:`, error);
+    // Refresh notifications every 30s (lightweight)
+    const interval = setInterval(() => {
+      setRefreshCountdown((prev) => {
+        if (prev <= 1) {
+          fetchNotificationsOnly();
+          return 30;
         }
-      }
-      
-      // Clear local state
-      setItems([]);
-      setSearchResults([]);
-      
-      // Refresh data to update stats
-      await fetchData();
-      
-      showMessage("All items have been cleared successfully! Users remain intact.");
-    } catch (error) {
-      console.error("Error clearing items:", error);
-      showMessage("Error clearing items. Please check console for details.", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+        return prev - 1;
+      });
+    }, 1000);
 
-  // Clear search results
-  const clearSearch = () => {
-    setSearchQuery("");
-    setSearchResults([]);
-  };
+    return () => clearInterval(interval);
+  }, [fetchData, fetchCart, fetchRole, fetchNotificationsOnly]);
 
-  // Edit item form
+  // Form helpers
   const openEditForm = (item) => {
     setEditingItem(item);
     setFormData({
@@ -526,12 +292,79 @@ export default function Dashboard() {
     setShowEditForm(true);
   };
 
-  // Reset form
   const resetForm = () => {
     setFormData({ brand: "", name: "", price: "", quantity: "", description: "" });
     setShowCreateForm(false);
     setShowEditForm(false);
     setEditingItem(null);
+  };
+
+  const handleCreateItem = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await API.post("/items", {
+        brand: formData.brand,
+        name: formData.name,
+        price: Number(formData.price),
+        quantity: Number(formData.quantity),
+        description: formData.description
+      });
+      setItems([...items, response.data]);
+      setShowCreateForm(false);
+      setFormData({ brand: "", name: "", price: "", quantity: "", description: "" });
+      fetchData();
+      showMessage("Item created successfully!");
+    } catch (error) {
+      console.error("Error creating item:", error);
+      showMessage(error.response?.data?.detail || "Error creating item", "error");
+    }
+  };
+
+  const handleUpdateItem = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await API.put(`/items/${encodeURIComponent(editingItem.brand)}`, {
+        brand: formData.brand,
+        name: formData.name,
+        price: Number(formData.price),
+        quantity: Number(formData.quantity),
+        description: formData.description
+      });
+      setItems(items.map((item) => (item.brand === editingItem.brand ? response.data.after_update : item)));
+      setShowEditForm(false);
+      setEditingItem(null);
+      setFormData({ brand: "", name: "", price: "", quantity: "", description: "" });
+      fetchData();
+      showMessage("Item updated successfully!");
+    } catch (error) {
+      console.error("Error updating item:", error);
+      showMessage(error.response?.data?.detail || "Error updating item", "error");
+    }
+  };
+
+  const handleDeleteItem = async (brand) => {
+    if (window.confirm(`Are you sure you want to delete ${brand}?`)) {
+      try {
+        await API.delete(`/items/${encodeURIComponent(brand)}`);
+        setItems(items.filter((item) => item.brand !== brand));
+        fetchData();
+        showMessage("Item deleted successfully!");
+      } catch (error) {
+        console.error("Error deleting item:", error);
+        showMessage(error.response?.data?.detail || "Error deleting item", "error");
+      }
+    }
+  };
+
+  const handleBuyItem = async (brand) => {
+    try {
+      const response = await API.post(`/items/buy/${encodeURIComponent(brand)}`);
+      showMessage(response.data.msg || "Purchased successfully");
+      fetchData();
+    } catch (error) {
+      console.error("Error buying item:", error);
+      showMessage(error.response?.data?.detail || "Error buying item", "error");
+    }
   };
 
   if (loading) {
@@ -547,35 +380,25 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto">
         {/* Message Display */}
         {message.show && (
-          <div className={`mb-6 p-4 rounded-lg border-l-4 ${
-            message.type === "error" 
-              ? "bg-red-50 border-red-400 text-red-700" 
-              : "bg-green-50 border-green-400 text-green-700"
-          }`}>
+          <div
+            className={`mb-6 p-4 rounded-lg border-l-4 ${
+              message.type === "error"
+                ? "bg-red-50 border-red-400 text-red-700"
+                : "bg-green-50 border-green-400 text-green-700"
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                {message.type === "error" ? (
-<<<<<<< HEAD
-                  <span className="text-red-500 mr-2">⚠️</span>
-                ) : (
-                  <span className="text-green-500 mr-2">✅</span>
-=======
-                  <span className="text-red-500 mr-2">!</span>
-                ) : (
-                  <span className="text-green-500 mr-2">✓</span>
->>>>>>> master
-                )}
+                <span className={`mr-2 ${message.type === "error" ? "text-red-500" : "text-green-500"}`}>
+                  {message.type === "error" ? "!" : "✓"}
+                </span>
                 <span className="font-medium">{message.text}</span>
               </div>
               <button
                 onClick={() => setMessage({ text: "", type: "", show: false })}
                 className="text-gray-400 hover:text-gray-600"
               >
-<<<<<<< HEAD
-                ✖️
-=======
                 ×
->>>>>>> master
               </button>
             </div>
           </div>
@@ -586,47 +409,26 @@ export default function Dashboard() {
           <div className="flex justify-between items-start mb-4">
             <h1 className="text-4xl font-bold text-gray-800">Inventory Dashboard</h1>
             <div className="text-right">
-              <p className="text-sm text-gray-600">
-                Last refresh: {lastRefresh.toLocaleTimeString()}
-              </p>
-              <p className="text-sm text-gray-500">
-                Auto-refresh in: {refreshCountdown}s
-              </p>
+              <p className="text-sm text-gray-600">Last refresh: {lastRefresh.toLocaleTimeString()}</p>
+              <p className="text-sm text-gray-500">Auto-refresh in: {refreshCountdown}s</p>
             </div>
           </div>
-          
+
           {/* Stats Cards */}
-<<<<<<< HEAD
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-100 p-4 rounded-xl">
-              <h3 className="text-lg font-semibold text-blue-800">Total Items</h3>
-              <p className="text-3xl font-bold text-blue-600">{stats.total_items || 0}</p>
-            </div>
-            <div className="bg-green-100 p-4 rounded-xl">
-              <h3 className="text-lg font-semibold text-green-800">In Stock</h3>
-              <p className="text-3xl font-bold text-green-600">{stats.in_stock || 0}</p>
-            </div>
-            <div className="bg-red-100 p-4 rounded-xl">
-              <h3 className="text-lg font-semibold text-red-800">Out of Stock</h3>
-              <p className="text-3xl font-bold text-red-600">{stats.out_of_stock || 0}</p>
-            </div>
-            <div className="bg-purple-100 p-4 rounded-xl">
-              <h3 className="text-lg font-semibold text-purple-800">Notifications</h3>
-              <p className="text-3xl font-bold text-purple-600">{notifications.length}</p>
-            </div>
-          </div>
-=======
-          <Suspense fallback={<div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            {[1,2,3,4].map(i => (
-              <div key={i} className="bg-gray-100 p-4 rounded-xl animate-pulse">
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded"></div>
+          <Suspense
+            fallback={
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-gray-100 p-4 rounded-xl animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-8 bg-gray-200 rounded"></div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>}>
+            }
+          >
             <StatsCards stats={stats} notifications={notifications} />
           </Suspense>
->>>>>>> master
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4">
@@ -640,54 +442,34 @@ export default function Dashboard() {
               onClick={fetchData}
               className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition"
             >
-<<<<<<< HEAD
-              🔄 Refresh Data
-=======
               Refresh Data
->>>>>>> master
             </button>
             <button
               onClick={() => setIsCartOpen(true)}
               className="bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition"
             >
-<<<<<<< HEAD
-              🛒 Open Cart ({cart.items?.length || 0})
-=======
               Open Cart ({cart.items?.length || 0})
->>>>>>> master
             </button>
             <button
               onClick={handleClearAllItems}
               className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition"
               disabled={stats.total_items === 0}
             >
-<<<<<<< HEAD
-              🧹 Clear All Items
-=======
               Clear All Items
->>>>>>> master
             </button>
             <button
               onClick={handleClearAllNotifications}
               className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition"
               disabled={notifications.length === 0}
             >
-<<<<<<< HEAD
-              🧹 Clear All Notifications
-=======
               Clear All Notifications
->>>>>>> master
             </button>
             {(userRole === "admin" || userRole === "superadmin") && (
               <button
                 onClick={() => setIsPayOpen(true)}
                 className="bg-violet-600 text-white px-6 py-3 rounded-lg hover:bg-violet-700 transition"
               >
-<<<<<<< HEAD
-                💳 Pay
-=======
                 Pay
->>>>>>> master
               </button>
             )}
           </div>
@@ -704,30 +486,16 @@ export default function Dashboard() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
-            <button
-              onClick={handleSearch}
-              className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition"
-            >
-<<<<<<< HEAD
-              🔍 Search
-=======
+            <button onClick={handleSearch} className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition">
               Search
->>>>>>> master
             </button>
             {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition"
-              >
-<<<<<<< HEAD
-                ✖️ Clear Search
-=======
+              <button onClick={clearSearch} className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition">
                 × Clear Search
->>>>>>> master
               </button>
             )}
           </div>
-          
+
           {/* Search Results */}
           {searchResults.length > 0 && (
             <div className="mt-4">
@@ -768,10 +536,12 @@ export default function Dashboard() {
                     <td className="p-3">${item.price}</td>
                     <td className="p-3">{item.quantity}</td>
                     <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        item.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {item.in_stock ? 'In Stock' : 'Out of Stock'}
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          item.in_stock ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {item.in_stock ? "In Stock" : "Out of Stock"}
                       </span>
                     </td>
                     <td className="p-3">
@@ -810,43 +580,21 @@ export default function Dashboard() {
           </div>
         </div>
 
-<<<<<<< HEAD
-        {/* Notifications */}
-        {notifications.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Notifications</h2>
-            <div className="space-y-3">
-              {notifications.map((notification, index) => (
-                <div key={index} className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
-                  <p className="font-semibold text-yellow-800">{notification.msg}</p>
-                  <p className="text-sm text-yellow-600">
-                    {notification.brand} - {notification.name} (Qty: {notification.quantity})
-                  </p>
-                </div>
-              ))}
-=======
-        {/* Notifications - Only show low stock alerts */}
-        {notifications.filter(notification => notification.quantity < 3).length > 0 && (
+        {/* Notifications - Low Stock Alerts only */}
+        {notifications.filter((n) => n.quantity < 3).length > 0 && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Low Stock Alerts</h2>
             <div className="space-y-3">
               {notifications
-                .filter(notification => notification.quantity < 3)
+                .filter((notification) => notification.quantity < 3)
                 .map((notification, index) => (
-                  <div
-                    key={index}
-                    className="p-4 rounded-lg border-l-4 bg-red-100 border-red-500"
-                  >
-                    <p className="font-semibold text-red-800">
-                      {notification.msg}
-                    </p>
+                  <div key={index} className="p-4 rounded-lg border-l-4 bg-red-100 border-red-500">
+                    <p className="font-semibold text-red-800">{notification.msg}</p>
                     <p className="text-sm text-red-600">
-                      {notification.brand} - {notification.name} (Qty:{" "}
-                      {notification.quantity})
+                      {notification.brand} - {notification.name} (Qty: {notification.quantity})
                     </p>
                   </div>
                 ))}
->>>>>>> master
             </div>
           </div>
         )}
@@ -861,7 +609,7 @@ export default function Dashboard() {
                   type="text"
                   placeholder="Brand"
                   value={formData.brand}
-                  onChange={(e) => setFormData({...formData, brand: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                   className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                   required
                 />
@@ -869,7 +617,7 @@ export default function Dashboard() {
                   type="text"
                   placeholder="Name"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                   required
                 />
@@ -878,31 +626,28 @@ export default function Dashboard() {
                   step="0.01"
                   placeholder="Price"
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   required
                 />
                 <input
                   type="number"
                   placeholder="Quantity"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   required
                 />
                 <textarea
                   placeholder="Description"
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   rows="3"
                   required
                 />
                 <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
-                  >
+                  <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">
                     Create Item
                   </button>
                   <button
@@ -928,16 +673,16 @@ export default function Dashboard() {
                   type="text"
                   placeholder="Brand"
                   value={formData.brand}
-                  onChange={(e) => setFormData({...formData, brand: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   required
                 />
                 <input
                   type="text"
                   placeholder="Name"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   required
                 />
                 <input
@@ -945,31 +690,28 @@ export default function Dashboard() {
                   step="0.01"
                   placeholder="Price"
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   required
                 />
                 <input
                   type="number"
                   placeholder="Quantity"
                   value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   required
                 />
                 <textarea
                   placeholder="Description"
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full p-3 border rounded-lg"
                   rows="3"
                   required
                 />
                 <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
-                  >
+                  <button type="submit" className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">
                     Update Item
                   </button>
                   <button
@@ -986,58 +728,13 @@ export default function Dashboard() {
         )}
 
         {/* Cart Panel */}
-<<<<<<< HEAD
-        {isCartOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-end z-50">
-            <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">Your Cart</h2>
-                <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700">✖️</button>
-              </div>
-              {(!cart.items || cart.items.length === 0) ? (
-                <p className="text-gray-600">Your cart is empty.</p>
-              ) : (
-                <div className="space-y-4">
-                  {cart.items.map((ci, idx) => (
-                    <div key={idx} className="border rounded-lg p-4 flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">{ci.brand}</p>
-                        <p className="text-sm text-gray-500">{ci.name}</p>
-                        <p className="text-sm text-gray-700">${ci.price}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => updateCartQty(ci.brand, Math.max(0, (ci.quantity || 1) - 1))}
-                          className="px-2 py-1 bg-gray-200 rounded"
-                        >-</button>
-                        <input
-                          type="number"
-                          min="0"
-                          value={ci.quantity}
-                          onChange={(e) => updateCartQty(ci.brand, Math.max(0, parseInt(e.target.value || '0', 10)))}
-                          className="w-16 p-1 border rounded text-center"
-                        />
-                        <button
-                          onClick={() => updateCartQty(ci.brand, (ci.quantity || 1) + 1)}
-                          className="px-2 py-1 bg-gray-200 rounded"
-                        >+</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-6 flex gap-3">
-                <button onClick={clearCart} className="flex-1 bg-gray-600 text-white py-2 rounded hover:bg-gray-700">Clear Cart</button>
-                <button onClick={checkoutCart} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700">Checkout</button>
-              </div>
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded-lg">Loading cart...</div>
             </div>
-          </div>
-        )}
-=======
-        <Suspense fallback={<div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg">Loading cart...</div>
-        </div>}>
+          }
+        >
           <CartPanel
             isCartOpen={isCartOpen}
             setIsCartOpen={setIsCartOpen}
@@ -1049,7 +746,6 @@ export default function Dashboard() {
             addToCart={addToCart}
           />
         </Suspense>
->>>>>>> master
 
         {/* Pay Panel (Admin/Superadmin) */}
         {isPayOpen && (userRole === "admin" || userRole === "superadmin") && (
@@ -1057,11 +753,9 @@ export default function Dashboard() {
             <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold">Payment</h2>
-<<<<<<< HEAD
-                <button onClick={() => setIsPayOpen(false)} className="text-gray-500 hover:text-gray-700">✖️</button>
-=======
-                <button onClick={() => setIsPayOpen(false)} className="text-gray-500 hover:text-gray-700">×</button>
->>>>>>> master
+                <button onClick={() => setIsPayOpen(false)} className="text-gray-500 hover:text-gray-700">
+                  ×
+                </button>
               </div>
               <p className="text-sm text-gray-600 mb-4">Using items from your cart.</p>
 
@@ -1069,33 +763,67 @@ export default function Dashboard() {
               <div className="space-y-3 mb-4">
                 <div>
                   <label className="block text-sm font-medium">Tax rate (%)</label>
-                  <input type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} className="w-full p-2 border rounded" />
+                  <input
+                    type="number"
+                    value={taxRate}
+                    onChange={(e) => setTaxRate(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium">Discount (absolute)</label>
-                  <input type="number" value={discount} onChange={(e) => setDiscount(e.target.value)} className="w-full p-2 border rounded" />
+                  <input
+                    type="number"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium">Method</label>
-                  <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="w-full p-2 border rounded">
+                  <select
+                    value={payMethod}
+                    onChange={(e) => setPayMethod(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
                     <option value="cash">Cash</option>
                     <option value="card">Card</option>
                     <option value="upi">UPI</option>
                   </select>
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={getQuote} className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Get Quote</button>
-                  <button onClick={chargePayment} className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700" disabled={!quote}>Charge</button>
+                  <button onClick={getQuote} className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+                    Get Quote
+                  </button>
+                  <button
+                    onClick={chargePayment}
+                    className="flex-1 bg-green-600 text-white py-2 rounded hover:bg-green-700"
+                    disabled={!quote}
+                  >
+                    Charge
+                  </button>
                 </div>
               </div>
 
               {/* Quote details */}
               {quote && (
                 <div className="bg-gray-50 rounded p-4 space-y-1">
-                  <div className="flex justify-between"><span>Subtotal</span><span>${quote.subtotal}</span></div>
-                  <div className="flex justify-between"><span>Tax</span><span>${quote.tax}</span></div>
-                  <div className="flex justify-between"><span>Discount</span><span>-${quote.discount}</span></div>
-                  <div className="flex justify-between font-semibold"><span>Total</span><span>${quote.total}</span></div>
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>${quote.subtotal}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tax</span>
+                    <span>${quote.tax}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Discount</span>
+                    <span>-${quote.discount}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Total</span>
+                    <span>${quote.total}</span>
+                  </div>
                 </div>
               )}
             </div>
